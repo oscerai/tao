@@ -109,7 +109,7 @@ percent-encoding = "2.3"
 tao-macros = { version = "0.1.4", path = "./tao-macros" }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-objc2 = "0.6"
+objc2 = { version = "0.6", features = ["exception"] }
 block2 = "0.6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
@@ -121,6 +121,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSDate",
   "NSDictionary",
   "NSEnumerator",
+  "NSException",
   "NSGeometry",
   "NSObjCRuntime",
   "NSRange",
