@@ -455,14 +455,14 @@ impl WindowFlags {
     // This needs to be after the `SetWindowPos` above or there will be
     // a title bar flicker on undecorated windows's creation
     if new.contains(WindowFlags::VISIBLE) {
+      // A non-focusable window carries `WS_EX_NOACTIVATE`, but `SW_SHOW` would
+      // still activate it, so show it without activation like a first show.
+      let activate = !old.contains(WindowFlags::MARKER_DONT_FOCUS)
+        && new.contains(WindowFlags::FOCUSABLE);
       unsafe {
         let _ = ShowWindow(
           window,
-          if old.contains(WindowFlags::MARKER_DONT_FOCUS) {
-            SW_SHOWNOACTIVATE
-          } else {
-            SW_SHOW
-          },
+          if activate { SW_SHOW } else { SW_SHOWNOACTIVATE },
         );
       }
     }
