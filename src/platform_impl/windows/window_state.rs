@@ -458,7 +458,7 @@ impl WindowFlags {
       unsafe {
         let _ = ShowWindow(
           window,
-          if old.contains(WindowFlags::MARKER_DONT_FOCUS) {
+          if old.contains(WindowFlags::MARKER_DONT_FOCUS) || !new.contains(WindowFlags::FOCUSABLE) {
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW
