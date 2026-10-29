@@ -174,7 +174,17 @@ impl KeyEventBuilder {
           *result = ProcResult::Value(LRESULT(0));
           // At this point, we know that there isn't going to be any more events related
           // to this key press
-          let event_info = self.event_info.lock().take().unwrap();
+          // The matching WM_KEYDOWN / WM_SYSKEYDOWN normally stored the partial
+          // event, but a dead-char message can arrive without one (for example
+          // when DefWindowProc re-enters the window proc during a system
+          // command). Drop the message instead of panicking.
+          let event_info = match self.event_info.lock().take() {
+            Some(ev_info) => ev_info,
+            None => {
+              warn!("Received a DEADCHAR message but no `event_info` was available, ignoring.");
+              return MatchResult::TokenToRemove(pending_token);
+            }
+          };
           let mut layouts = LAYOUT_CACHE.lock();
           let ev = event_info.finalize(&mut layouts.strings);
           MatchResult::MessagesToDispatch(self.pending.complete_pending(
@@ -947,5 +957,29 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
     | VK_NUMPAD7 | VK_NUMPAD8 | VK_NUMPAD9 | VK_DECIMAL | VK_DIVIDE | VK_MULTIPLY | VK_SUBTRACT
     | VK_ADD | VK_ABNT_C2 => KeyLocation::Numpad,
     _ => KeyLocation::Standard,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  // A dead-char message with no stored key-down event must be dropped, not
+  // panic. Before the fix this hit `Option::unwrap()` on `None` (DSK-1541).
+  #[test]
+  fn dead_char_without_pending_key_down_is_ignored() {
+    let builder = KeyEventBuilder::default();
+    for msg_kind in [WM_DEADCHAR, WM_SYSDEADCHAR] {
+      let mut result = ProcResult::DefWindowProc;
+      let events = builder.process_message(
+        HWND::default(),
+        msg_kind,
+        WPARAM(usize::from(b'`')),
+        LPARAM(0),
+        &mut result,
+      );
+      assert!(events.is_empty());
+      assert!(matches!(result, ProcResult::Value(LRESULT(0))));
+    }
   }
 }
