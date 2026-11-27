@@ -2340,7 +2340,12 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       // `wParam` is `FALSE` is for if the shutdown gets canceled,
       // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
       if wparam.0 == TRUE.0 as usize {
-        userdata.event_loop_runner.loop_destroyed();
+        // When `WM_ENDSESSION` arrives during a nested Win32 pump (e.g. WebView2
+        // creation) or before `run_return` registers a handler, `event_handler` is
+        // `None` and calling `loop_destroyed` would panic on re-entry.
+        if !userdata.event_loop_runner.should_buffer() {
+          userdata.event_loop_runner.loop_destroyed();
+        }
         // `WM_ENDSESSION` can be sent by Windows during shutdown or by Restart Manager
         //
         // - From Windows shutdown: Windows will shut us down after we return `0` here
